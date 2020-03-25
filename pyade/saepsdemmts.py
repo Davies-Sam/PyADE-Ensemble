@@ -1,7 +1,7 @@
 import numpy as np
-import pyade.commons
+import commons
 import collections
-import pyade.mmts
+import mmts
 from typing import Union, Callable, Dict, Any
 
 
@@ -35,10 +35,12 @@ def get_default_params(dim: int) -> dict:
 
 
 def apply(population_size: int, individual_size: int,
-          bounds: np.ndarray,
-          func: Callable[[np.ndarray], float], opts: Any,
-          callback: Callable[[Dict], Any],
-          max_evals: int, seed: Union[int, None]):
+            bounds: np.ndarray,
+            func: Callable[[np.ndarray], float], opts: Any,
+            callback: Callable[[Dict], Any],
+            max_evals: int, seed: Union[int, None],
+            population: Union[np.array, None],
+            answer: Union[float,int]):
     """
     Applies the Self-adaptive differential evolution algorithm (SaDE).
     :param population_size: Size of the population.
@@ -66,9 +68,10 @@ def apply(population_size: int, individual_size: int,
     """
 
     np.random.seed(seed)
-    population = pyade.commons.init_population(population_size, individual_size, bounds)
+    if population is None:
+        population = commons.init_population(population_size, individual_size, bounds)
 
-    fitness = pyade.commons.apply_fitness(population, func, opts)
+    fitness = commons.apply_fitness(population, func, opts)
 
     num_evals = 0
 
@@ -127,20 +130,20 @@ def apply(population_size: int, individual_size: int,
 
         mutated[best_mut_idx] = population[l_best_indexes[best_mut_idx]] + f[best_mut_idx].reshape(len(best_mut_idx), 1) * (parents1[best_mut_idx] - parents2[best_mut_idx])
 
-        mutated = pyade.commons.keep_bounds(mutated, bounds)
+        mutated = commons.keep_bounds(mutated, bounds)
 
         # 2.2 Crossover
         bin_cross_idx = np.where(cross_method == 'bin')[0]
         exp_cross_idx = np.where(cross_method == 'exp')[0]
 
         crossed = np.empty(population.shape)
-        crossed[bin_cross_idx] = pyade.commons.crossover(population[bin_cross_idx], mutated[bin_cross_idx],
+        crossed[bin_cross_idx] = commons.crossover(population[bin_cross_idx], mutated[bin_cross_idx],
                                                          cr[bin_cross_idx].reshape(len(cr[bin_cross_idx]), 1))
-        crossed[exp_cross_idx] = pyade.commons.exponential_crossover(population[exp_cross_idx], mutated[exp_cross_idx],
+        crossed[exp_cross_idx] = commons.exponential_crossover(population[exp_cross_idx], mutated[exp_cross_idx],
                                                                      cr[exp_cross_idx].reshape(len(cr[exp_cross_idx]), 1))
 
         # 2.3 Recalculate fitness
-        c_fitness = pyade.commons.apply_fitness(crossed, func, opts)
+        c_fitness = commons.apply_fitness(crossed, func, opts)
         num_evals += population_size
 
         # 2.4 Distance between new population and original population
@@ -164,7 +167,7 @@ def apply(population_size: int, individual_size: int,
 
         if run_mmts:
             selected = clearing(0.2, 5, population, fitness.copy())
-            a = pyade.mmts.mmts(population[selected], bounds, fitness[selected], mmts_desired_evals, func, opts)
+            a = mmts.mmts(population[selected], bounds, fitness[selected], mmts_desired_evals, func, opts)
             population[selected] = a[0]
             fitness_test = fitness[selected] < a[1]
             s['mmts_ok'] = len(fitness_test)
@@ -244,5 +247,10 @@ def apply(population_size: int, individual_size: int,
         if callback is not None:
             callback(**(locals()))
 
-    best = np.argmin(fitness)
-    return population[best], fitness[best]
+        best = np.argmin(fitness)   
+
+        if fitness[best] == answer:
+                    yield  population[best], fitness[best], population
+                    #break
+        else:
+            yield  population[best], fitness[best], population

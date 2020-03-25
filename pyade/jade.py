@@ -1,4 +1,4 @@
-import pyade.commons
+import commons
 import numpy as np
 from typing import Callable, Union, Dict, Any
 
@@ -20,7 +20,9 @@ def get_default_params(dim: int) -> dict:
 def apply(population_size: int, individual_size: int, bounds: np.ndarray,
           func: Callable[[np.ndarray], float], opts: Any,
           p: Union[int, float], c: Union[int, float], callback: Callable[[Dict], Any],
-          max_evals: int, seed: Union[int, None]) -> [np.ndarray, int]:
+          max_evals: int, seed: Union[int, None],
+          population: Union[np.array, None],
+          answer: Union[int, float] ) -> [np.ndarray, int]:
     """
     Applies the JADE Differential Evolution algorithm.
     :param population_size: Size of the population.
@@ -76,13 +78,15 @@ def apply(population_size: int, individual_size: int, bounds: np.ndarray,
     np.random.seed(seed)
 
     # 1. Init population
-    population = pyade.commons.init_population(population_size, individual_size, bounds)
+    if population is None:
+        population = commons.init_population(population_size, individual_size, bounds)
     u_cr = 0.5
     u_f = 0.6
 
     p = np.ones(population_size) * p
-    fitness = pyade.commons.apply_fitness(population, func, opts)
+    fitness = commons.apply_fitness(population, func, opts)
     max_iters = max_evals // population_size
+
     for current_generation in range(max_iters):
         # 2.1 Generate parameter values for current generation
         cr = np.random.normal(u_cr, 0.1, population_size)
@@ -90,10 +94,10 @@ def apply(population_size: int, individual_size: int, bounds: np.ndarray,
         f = np.concatenate((f, np.random.normal(u_f, 0.1, population_size - (population_size // 3))))
 
         # 2.2 Common steps
-        mutated = pyade.commons.current_to_pbest_mutation(population, fitness, f.reshape(len(f), 1), p, bounds)
-        crossed = pyade.commons.crossover(population, mutated, cr.reshape(len(f), 1))
-        c_fitness = pyade.commons.apply_fitness(crossed, func, opts)
-        population, indexes = pyade.commons.selection(population, crossed,
+        mutated = commons.current_to_pbest_mutation(population, fitness, f.reshape(len(f), 1), p, bounds)
+        crossed = commons.crossover(population, mutated, cr.reshape(len(f), 1))
+        c_fitness = commons.apply_fitness(crossed, func, opts)
+        population, indexes = commons.selection(population, crossed,
                                                       fitness, c_fitness, return_indexes=True)
 
         # 2.3 Adapt for next generation
@@ -105,5 +109,10 @@ def apply(population_size: int, individual_size: int, bounds: np.ndarray,
         if callback is not None:
             callback(**(locals()))
 
-    best = np.argmin(fitness)
-    return population[best], fitness[best]
+        best = np.argmin(fitness)   
+
+        if fitness[best] == answer:
+                    yield  population[best], fitness[best], population
+                    #break
+        else:
+            yield  population[best], fitness[best], population

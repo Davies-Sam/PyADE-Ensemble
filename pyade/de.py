@@ -1,6 +1,7 @@
 import numpy as np
-import pyade.commons
+import commons
 from typing import Callable, Union, Dict, Any
+
 
 
 def get_default_params(dim: int) -> dict:
@@ -16,12 +17,18 @@ def get_default_params(dim: int) -> dict:
             'f': 0.5, 'cr': 0.9, 'individual_size': dim, 'population_size': 10 * dim, 'opts': None}
 
 
+
 def apply(population_size: int, individual_size: int, f: Union[float, int],
-          cr: Union[float, int], bounds: np.ndarray,
-          func: Callable[[np.ndarray], float], opts: Any,
-          callback: Callable[[Dict], Any],
-          cross: str,
-          max_evals: int, seed: Union[int, None]) -> [np.ndarray, int]:
+        cr: Union[float, int], bounds: np.ndarray,
+        func: Callable[[np.ndarray], float], opts: Any,
+        callback: Callable[[Dict], Any],
+        cross: str,
+        max_evals: int, 
+        seed: Union[int, None],
+        population: Union[np.ndarray, None],
+        answer: Union[int, float] ) -> [np.ndarray, int]:
+
+
     """
     Applies the standard differential evolution algorithm.
     :param population_size: Size of the population.
@@ -37,7 +44,7 @@ def apply(population_size: int, individual_size: int, f: Union[float, int],
     Second column represent the maximum value for the row feature.
     :type bounds: np.ndarray
     :param func: Evaluation function. The function used must receive one
-     parameter.This parameter will be a numpy array representing an individual.
+    parameter.This parameter will be a numpy array representing an individual.
     :type func: Callable[[np.ndarray], float]
     :param opts: Optional parameters for the fitness function.
     :type opts: Any type.
@@ -62,46 +69,65 @@ def apply(population_size: int, individual_size: int, f: Union[float, int],
 
     if (type(f) is not int and type(f) is not float) or not 0 <= f <= 2:
         raise ValueError("f (mutation parameter) must be a "
-                         "real number in [0,2].")
+                        "real number in [0,2].")
 
     if (type(cr) is not int and type(cr) is not float) or not 0 <= cr <= 1:
         raise ValueError("cr (crossover ratio) must be a "
-                         "real number in [0,1].")
+                        "real number in [0,1].")
 
     if type(max_evals) is not int or max_evals <= 0:
         raise ValueError("max_evals must be a positive integer.")
-
+        
     if type(bounds) is not np.ndarray or bounds.shape != (individual_size, 2):
         raise ValueError("bounds must be a NumPy ndarray.\n"
-                         "The array must be of individual_size length. "
-                         "Each row must have 2 elements.")
+                        "The array must be of individual_size length. "
+                        "Each row must have 2 elements.")
 
     if type(cross) is not str and cross not in ['bin', 'exp']:
         raise ValueError("cross must be a string and must be one of \'bin\' or \'cross\'")
     if type(seed) is not int and seed is not None:
         raise ValueError("seed must be an integer or None.")
 
+
     # 1. Initialization
     np.random.seed(seed)
-    population = pyade.commons.init_population(population_size,
-                                               individual_size, bounds)
-    fitness = pyade.commons.apply_fitness(population, func, opts)
+    if population is None:
+        population = commons.init_population(population_size, individual_size, bounds)
+
+    #population = commons.init_population(population_size, individual_size, bounds)
+    try:
+        fitness = commons.apply_fitness(population, func, opts)
+    except TypeError:
+        print(func, population)
+
+    #use self.population and self.fitness - move the loop into a step function
 
     max_iters = max_evals // population_size
+    
     for current_generation in range(max_iters):
-        mutated = pyade.commons.binary_mutation(population, f, bounds)
-        if cross == 'bin':
-            crossed = pyade.commons.crossover(population, mutated, cr)
-        else:
-            crossed = pyade.commons.exponential_crossover(population, mutated, cr)
 
-        c_fitness = pyade.commons.apply_fitness(crossed, func, opts)
-        population, indexes = pyade.commons.selection(population, crossed,
-                                                      fitness, c_fitness, return_indexes=True)
+        mutated = commons.binary_mutation(population, f, bounds)
+        if cross == 'bin':
+            crossed = commons.crossover(population, mutated, cr)
+        else:
+            crossed = commons.exponential_crossover(population, mutated, cr)
+
+        c_fitness = commons.apply_fitness(crossed, func, opts)
+        population, indexes = commons.selection(population, crossed, fitness, c_fitness, return_indexes=True)
 
         fitness[indexes] = c_fitness[indexes]
+
+        #print(locals())
+
+        best = np.argmin(fitness)
+
         if callback is not None:
             callback(**(locals()))
 
-    best = np.argmin(fitness)
-    return population[best], fitness[best]
+        best = np.argmin(fitness)
+
+        if fitness[best] == answer:
+                    yield  population[best], fitness[best], population, fitness
+                    #break
+        else:
+            yield  population[best], fitness[best], population, fitness

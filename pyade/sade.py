@@ -1,5 +1,5 @@
 import numpy as np
-import pyade.commons
+import commons
 from typing import Union, Callable, Dict, Any
 
 
@@ -19,7 +19,9 @@ def apply(population_size: int, individual_size: int,
           bounds: np.ndarray,
           func: Callable[[np.ndarray], float], opts: Any,
           callback: Callable[[Dict], Any],
-          max_evals: int, seed: Union[int, None]):
+          max_evals: int, seed: Union[int, None],
+          answer: float,
+          population: [np.ndarray, None]):
     """
     Applies the Self-adaptive differential evolution algorithm (SaDE).
     :param population_size: Size of the population.
@@ -65,11 +67,12 @@ def apply(population_size: int, individual_size: int,
 
     # 1. Initialization
     np.random.seed(seed)
-    population = pyade.commons.init_population(population_size, individual_size, bounds)
+    if population is None:
+        population = commons.init_population(population_size, individual_size, bounds)
 
     # 2. SaDE Algorithm
     probability = 0.5
-    fitness = pyade.commons.apply_fitness(population, func, opts)
+    fitness = commons.apply_fitness(population, func, opts)
     cr_m = 0.5
     f_m = 0.5
 
@@ -86,6 +89,7 @@ def apply(population_size: int, individual_size: int,
     cr = np.clip(cr, 0, 1)
 
     max_iters = max_evals // population_size
+
     for current_generation in range(max_iters):
         # 2.1 Mutation
         # 2.1.1 Randomly choose which individuals do each mutation
@@ -95,19 +99,19 @@ def apply(population_size: int, individual_size: int,
 
         # 2.1.2 Apply the mutations
         mutated = population.copy()
-        mutated[choice_1] = pyade.commons.binary_mutation(population[choice_1],
+        mutated[choice_1] = commons.binary_mutation(population[choice_1],
                                                           f[choice_1].reshape(sum(choice_1), 1), bounds)
-        mutated[choice_2] = pyade.commons.current_to_best_2_binary_mutation(population[choice_2],
+        mutated[choice_2] = commons.current_to_best_2_binary_mutation(population[choice_2],
                                                                             fitness[choice_2],
                                                                             f[choice_2].reshape(sum(choice_2), 1),
                                                                             bounds)
 
         # 2.2 Crossover
-        crossed = pyade.commons.crossover(population, mutated, cr.reshape(population_size, 1))
-        c_fitness = pyade.commons.apply_fitness(crossed, func, opts)
+        crossed = commons.crossover(population, mutated, cr.reshape(population_size, 1))
+        c_fitness = commons.apply_fitness(crossed, func, opts)
 
         # 2.3 Selection
-        population = pyade.commons.selection(population, crossed, fitness, c_fitness)
+        population = commons.selection(population, crossed, fitness, c_fitness)
         winners = c_fitness < fitness
         fitness[winners] = c_fitness[winners]
 
@@ -142,5 +146,10 @@ def apply(population_size: int, individual_size: int,
         if callback is not None:
             callback(**(locals()))
 
-    best = np.argmin(fitness)
-    return population[best], fitness[best]
+        best = np.argmin(fitness)
+
+        if fitness[best] == answer:
+                    yield  population[best], fitness[best], population
+                    #break
+        else:
+            yield  population[best], fitness[best], population

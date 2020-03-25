@@ -1,4 +1,4 @@
-import pyade.commons
+import commons
 import numpy as np
 import math
 import scipy.stats
@@ -22,10 +22,12 @@ def get_default_params(dim: int):
 
 
 def apply(population_size: int, individual_size: int, bounds: np.ndarray,
-          func: Callable[[np.ndarray], float], opts: Any,
-          memory_size: int, callback: Callable[[Dict], Any],
-          min_population_size: int,
-          max_evals: int, seed: Union[int, None]) -> [np.ndarray, int]:
+            func: Callable[[np.ndarray], float], opts: Any,
+            memory_size: int, callback: Callable[[Dict], Any],
+            min_population_size: int,
+            max_evals: int, seed: Union[int, None],
+            population: Union[np.array, None],
+            answer: Union[float,int]) -> [np.ndarray, int]:
     """
     Applies the L-SHADE-cnEpSin differential evolution algorithm.
     :param population_size: Size of the population (NP-max)
@@ -77,8 +79,9 @@ def apply(population_size: int, individual_size: int, bounds: np.ndarray,
 
     # 1. Initialization
     # 1.1 Initialize population at first generation
-    population = pyade.commons.init_population(population_size, individual_size, bounds)
-    fitness = pyade.commons.apply_fitness(population, func, opts)
+    if population is None:
+        population = commons.init_population(population_size, individual_size, bounds)
+    fitness = commons.apply_fitness(population, func, opts)
 
     # 1.2 Initialize memory of first control settings
     u_f = np.ones(memory_size) * .5
@@ -105,6 +108,7 @@ def apply(population_size: int, individual_size: int, bounds: np.ndarray,
     n = population_size
     i = 0
     max_iters = 0
+
     while i < max_evals:
         max_iters += 1
         n = round((min_population_size - population_size) / max_evals * i + population_size)
@@ -165,7 +169,7 @@ def apply(population_size: int, individual_size: int, bounds: np.ndarray,
 
             f = np.clip(f, 0.05, 1)
 
-        mutated = pyade.commons.current_to_pbest_mutation(population, fitness, f.reshape(current_size, 1),
+        mutated = commons.current_to_pbest_mutation(population, fitness, f.reshape(current_size, 1),
                                                           np.ones(current_size) * p, bounds)
 
         # Crossover
@@ -180,7 +184,7 @@ def apply(population_size: int, individual_size: int, bounds: np.ndarray,
 
         crossed = population.copy()
         # Crossover: Binomial Crossover
-        crossed[bin_indexes] = pyade.commons.crossover(population[bin_indexes], mutated[bin_indexes],
+        crossed[bin_indexes] = commons.crossover(population[bin_indexes], mutated[bin_indexes],
                                                        cr[bin_indexes].reshape(len(bin_indexes), 1))
 
         # Covariance matrix learning with euclidean neighborhood
@@ -215,17 +219,17 @@ def apply(population_size: int, individual_size: int, bounds: np.ndarray,
         cov_population = np.dot(population[cov_indexes], tm)
         cov_mutated = np.dot(mutated[cov_indexes], tm)
 
-        cov_crossed = pyade.commons.crossover(cov_population, cov_mutated,
+        cov_crossed = commons.crossover(cov_population, cov_mutated,
                                               cr[cov_indexes].reshape(len(cov_indexes), 1))
 
         # E. Go back the te original coordinate system
 
         crossed[cov_indexes] = np.dot(cov_crossed, tm_.T)
-        crossed_fitness = pyade.commons.apply_fitness(crossed, func, opts)
+        crossed_fitness = commons.apply_fitness(crossed, func, opts)
         num_evals += current_size
 
         # Selection
-        population, indexes = pyade.commons.selection(population, crossed, fitness,
+        population, indexes = commons.selection(population, crossed, fitness,
                                                       crossed_fitness, return_indexes=True)
         winners = crossed_fitness < fitness
 
@@ -280,5 +284,10 @@ def apply(population_size: int, individual_size: int, bounds: np.ndarray,
 
         current_generation += 1
 
-    best = np.argmin(fitness)
-    return population[best], fitness[best]
+        best = np.argmin(fitness)   
+
+        if fitness[best] == answer:
+                    yield  population[best], fitness[best], population
+                    #break
+        else:
+            yield  population[best], fitness[best], population 

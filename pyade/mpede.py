@@ -1,6 +1,6 @@
 from typing import Any, Callable, Dict, Union
 import numpy as np
-import pyade.commons
+import commons
 import scipy.stats
 
 
@@ -21,11 +21,13 @@ def get_default_params(dim: int) -> dict:
 
 
 def apply(population_size: int, individual_size: int, bounds: np.ndarray,
-          func: Callable[[np.ndarray], float], opts: Any,
-          callback: Callable[[Dict], Any],
-          lambdas: Union[list, np.array],
-          ng: int, c: Union[int, float], p: Union[int, float],
-          max_evals: int, seed: Union[int, None]) -> [np.ndarray, int]:
+            func: Callable[[np.ndarray], float], opts: Any,
+            callback: Callable[[Dict], Any],
+            lambdas: Union[list, np.array],
+            ng: int, c: Union[int, float], p: Union[int, float],
+            max_evals: int, seed: Union[int, None],
+            population: Union[np.array, None],
+            answer: Union[float,int]) -> [np.ndarray, int]:
 
     """
     Applies the MPEDE differential evolution algorithm.
@@ -103,7 +105,10 @@ def apply(population_size: int, individual_size: int, bounds: np.ndarray,
 
     # 1.2 Initialize population
     pop_size = lambdas * population_size
-    big_population = pyade.commons.init_population(int(sum(pop_size)), individual_size, bounds)
+
+    if population is None:
+        big_population = commons.init_population(int(sum(pop_size)), individual_size, bounds)
+    
     pops = np.array_split(big_population, 4)
 
     chosen = np.random.randint(0, 3)
@@ -119,8 +124,9 @@ def apply(population_size: int, individual_size: int, bounds: np.ndarray,
     for j in range(3):
         f.append(np.empty(pop_size[j]))
         cr.append(np.empty(pop_size[j]))
-        fitnesses.append(pyade.commons.apply_fitness(pops[j], func, opts))
+        fitnesses.append(commons.apply_fitness(pops[j], func, opts))
         num_evals += len(pops[j])
+        
 
     # 2. Start the algorithm
     while num_evals <= max_evals:
@@ -135,24 +141,24 @@ def apply(population_size: int, individual_size: int, bounds: np.ndarray,
             cr[j] = np.clip(cr[j], 0, 1)
 
         # 2.2 Apply mutation to each subpopulation
-        mutated1 = pyade.commons.current_to_pbest_mutation(pops[0], fitnesses[0],
+        mutated1 = commons.current_to_pbest_mutation(pops[0], fitnesses[0],
                                                            f[0].reshape(len(f[0]), 1),
                                                            np.ones(len(pops[0])) * p, bounds)
 
-        mutated2 = pyade.commons.current_to_rand_1_mutation(pops[1], fitnesses[1],
+        mutated2 = commons.current_to_rand_1_mutation(pops[1], fitnesses[1],
                                                             f[1].copy().reshape(len(f[1]), 1) * .5 + 1,
                                                             f[1].reshape(len(f[1]), 1), bounds)
 
-        mutated3 = pyade.commons.binary_mutation(pops[2], f[2].reshape(len(f[2]), 1), bounds)
+        mutated3 = commons.binary_mutation(pops[2], f[2].reshape(len(f[2]), 1), bounds)
 
         # 2.3 Do the crossover and calculate new fitness
-        crossed1 = pyade.commons.crossover(pops[0], mutated1, cr[0].reshape(len(cr[0]), 1))
+        crossed1 = commons.crossover(pops[0], mutated1, cr[0].reshape(len(cr[0]), 1))
         crossed2 = mutated2
-        crossed3 = pyade.commons.crossover(pops[2], mutated3, cr[2].reshape(len(cr[2]), 1))
+        crossed3 = commons.crossover(pops[2], mutated3, cr[2].reshape(len(cr[2]), 1))
 
-        c_fitness1 = pyade.commons.apply_fitness(crossed1, func, opts)
-        c_fitness2 = pyade.commons.apply_fitness(crossed2, func, opts)
-        c_fitness3 = pyade.commons.apply_fitness(crossed3, func, opts)
+        c_fitness1 = commons.apply_fitness(crossed1, func, opts)
+        c_fitness2 = commons.apply_fitness(crossed2, func, opts)
+        c_fitness3 = commons.apply_fitness(crossed3, func, opts)
 
         for j in range(3):
             num_evals += len(pops[j])
@@ -163,9 +169,9 @@ def apply(population_size: int, individual_size: int, bounds: np.ndarray,
         winners2 = c_fitness2 < fitnesses[1]
         winners3 = c_fitness3 < fitnesses[2]
 
-        pops[0] = pyade.commons.selection(pops[0], crossed1, fitnesses[0], c_fitness1)
-        pops[1] = pyade.commons.selection(pops[1], crossed2, fitnesses[1], c_fitness2)
-        pops[2] = pyade.commons.selection(pops[2], crossed3, fitnesses[2], c_fitness3)
+        pops[0] = commons.selection(pops[0], crossed1, fitnesses[0], c_fitness1)
+        pops[1] = commons.selection(pops[1], crossed2, fitnesses[1], c_fitness2)
+        pops[2] = commons.selection(pops[2], crossed3, fitnesses[2], c_fitness3)
 
         fitnesses[0][winners1] = c_fitness1[winners1]
         fitnesses[1][winners2] = c_fitness2[winners2]
@@ -217,5 +223,10 @@ def apply(population_size: int, individual_size: int, bounds: np.ndarray,
         if callback is not None:
             callback(**(locals()))
 
-    best = np.argmin(fitness)
-    return population[best], fitness[best]
+        best = np.argmin(fitness)   
+
+        if fitness[best] == answer:
+                    yield  population[best], fitness[best], population
+                    #break
+        else:
+            yield  population[best], fitness[best], population 

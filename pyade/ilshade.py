@@ -1,4 +1,4 @@
-import pyade.commons
+import commons
 import numpy as np
 import scipy.stats
 import random
@@ -19,9 +19,11 @@ def get_default_params(dim: int):
 
 
 def apply(population_size: int, individual_size: int, bounds: np.ndarray,
-          func: Callable[[np.ndarray], float], opts: Any,
-          memory_size: int, callback: Callable[[Dict], Any],
-          max_evals: int, seed: Union[int, None]) -> [np.ndarray, int]:
+        func: Callable[[np.ndarray], float], opts: Any,
+        memory_size: int, callback: Callable[[Dict], Any],
+        max_evals: int, seed: Union[int, None],
+        population: Union[np.array, None],
+        answer: Union[float,int]) -> [np.ndarray, int]:
     """
     Applies the iL-SHADE differential evolution algorithm.
     :param population_size: Size of the population.
@@ -33,7 +35,7 @@ def apply(population_size: int, individual_size: int, bounds: np.ndarray,
     Second column represent the maximum value for the row feature.
     :type bounds: np.ndarray
     :param func: Evaluation function. The function used must receive one
-     parameter.This parameter will be a numpy array representing an individual.
+    parameter.This parameter will be a numpy array representing an individual.
     :type func: Callable[[np.ndarray], float]
     :param opts: Optional parameters for the fitness function.
     :type opts: Any type.
@@ -61,8 +63,8 @@ def apply(population_size: int, individual_size: int, bounds: np.ndarray,
 
     if type(bounds) is not np.ndarray or bounds.shape != (individual_size, 2):
         raise ValueError("bounds must be a NumPy ndarray.\n"
-                         "The array must be of individual_size length. "
-                         "Each row must have 2 elements.")
+                        "The array must be of individual_size length. "
+                        "Each row must have 2 elements.")
 
     if type(seed) is not int and seed is not None:
         raise ValueError("seed must be an integer or None.")
@@ -71,13 +73,15 @@ def apply(population_size: int, individual_size: int, bounds: np.ndarray,
     random.seed(seed)
 
     # 1. Initialization
-    population = pyade.commons.init_population(population_size, individual_size, bounds)
+    if population is None:
+        population = commons.init_population(population_size, individual_size, bounds)
+
     current_size = population_size
     m_cr = np.ones(memory_size) * .8
     m_f = np.ones(memory_size) * .5
     archive = []
     k = 0
-    fitness = pyade.commons.apply_fitness(population, func, opts)
+    fitness = commons.apply_fitness(population, func, opts)
 
     memory_indexes = list(range(memory_size))
     num_evals = 0
@@ -91,6 +95,8 @@ def apply(population_size: int, individual_size: int, bounds: np.ndarray,
     n = population_size
     i = 0
     max_iters = 0
+
+
     while i < max_evals:
         max_iters += 1
         n = round((4 - population_size) / max_evals * i + population_size)
@@ -123,12 +129,12 @@ def apply(population_size: int, individual_size: int, bounds: np.ndarray,
             f[f > 0.9] = 0.9
 
         # 2.2 Common steps
-        mutated = pyade.commons.current_to_pbest_mutation(population, fitness, f.reshape(len(f), 1), p_i, bounds)
-        crossed = pyade.commons.crossover(population, mutated, cr.reshape(len(f), 1))
-        c_fitness = pyade.commons.apply_fitness(crossed, func, opts)
+        mutated = commons.current_to_pbest_mutation(population, fitness, f.reshape(len(f), 1), p_i, bounds)
+        crossed = commons.crossover(population, mutated, cr.reshape(len(f), 1))
+        c_fitness = commons.apply_fitness(crossed, func, opts)
         num_evals += current_size
-        population, indexes = pyade.commons.selection(population, crossed,
-                                                      fitness, c_fitness, return_indexes=True)
+        population, indexes = commons.selection(population, crossed,
+                                                    fitness, c_fitness, return_indexes=True)
 
         # 2.3 Adapt for next generation
         archive.extend(population[indexes])
@@ -168,5 +174,13 @@ def apply(population_size: int, individual_size: int, bounds: np.ndarray,
             callback(**(locals()))
         current_generation += 1
 
-    best = np.argmin(fitness)
-    return population[best], fitness[best]
+        best = np.argmin(fitness)  
+
+        if fitness[best] == answer:
+                    yield  population[best], fitness[best], population
+                    #break
+        else:
+            yield  population[best], fitness[best], population
+    
+         
+    

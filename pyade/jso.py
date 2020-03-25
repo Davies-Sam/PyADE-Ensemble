@@ -1,4 +1,4 @@
-import pyade.commons
+import commons
 import numpy as np
 import scipy.stats
 import random
@@ -19,9 +19,11 @@ def get_default_params(dim: int):
 
 
 def apply(population_size: int, individual_size: int, bounds: np.ndarray,
-          func: Callable[[np.ndarray], float], opts: Any,
-          memory_size: int, callback: Callable[[Dict], Any],
-          max_evals: int, seed: Union[int, None]) -> [np.ndarray, int]:
+            func: Callable[[np.ndarray], float], opts: Any,
+            memory_size: int, callback: Callable[[Dict], Any],
+            max_evals: int, seed: Union[int, None],
+            population: Union[np.array, None],
+            answer: Union[float,int]) -> [np.ndarray, int]:
     """
     Applies the jSO differential evolution algorithm.
     :param population_size: Size of the population.
@@ -71,13 +73,14 @@ def apply(population_size: int, individual_size: int, bounds: np.ndarray,
     random.seed(seed)
 
     # 1. Initialization
-    population = pyade.commons.init_population(population_size, individual_size, bounds)
+    if population is None:
+        population = commons.init_population(population_size, individual_size, bounds)
     current_size = population_size
     m_cr = np.ones(population_size) * .8
     m_f = np.ones(population_size) * .5
     archive = []
     k = 0
-    fitness = pyade.commons.apply_fitness(population, func, opts)
+    fitness = commons.apply_fitness(population, func, opts)
 
     memory_size = population_size
     memory_indexes = list(range(memory_size))
@@ -91,6 +94,7 @@ def apply(population_size: int, individual_size: int, bounds: np.ndarray,
     n = population_size
     i = 0
     max_iters = 0
+  
     while i < max_evals:
         max_iters += 1
         n = round((4 - population_size) / max_evals * i + population_size)
@@ -135,13 +139,13 @@ def apply(population_size: int, individual_size: int, bounds: np.ndarray,
 
         weighted = np.clip(weighted, 0, 1)
         # print(min(fitness), min(cr), max(cr), min(f), max(f))
-        mutated = pyade.commons.current_to_pbest_weighted_mutation(population, fitness, f.reshape(len(f), 1),
+        mutated = commons.current_to_pbest_weighted_mutation(population, fitness, f.reshape(len(f), 1),
                                                                    weighted, p, bounds)
-        crossed = pyade.commons.crossover(population, mutated, cr.reshape(len(f), 1))
-        c_fitness = pyade.commons.apply_fitness(crossed, func, opts)
+        crossed = commons.crossover(population, mutated, cr.reshape(len(f), 1))
+        c_fitness = commons.apply_fitness(crossed, func, opts)
 
         num_evals += current_size
-        population, indexes = pyade.commons.selection(population, crossed,
+        population, indexes = commons.selection(population, crossed,
                                                       fitness, c_fitness, return_indexes=True)
 
         # 2.3 Adapt for next generation
@@ -182,6 +186,11 @@ def apply(population_size: int, individual_size: int, bounds: np.ndarray,
             callback(**(locals()))
 
         current_generation += 1
+        
+        best = np.argmin(fitness)   
 
-    best = np.argmin(fitness)
-    return population[best], fitness[best]
+        if fitness[best] == answer:
+                    yield  population[best], fitness[best], population
+                    #break
+        else:
+            yield  population[best], fitness[best], population
