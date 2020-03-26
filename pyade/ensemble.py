@@ -24,7 +24,6 @@ except FileExistsError:
 #              Main Function               #
 ############################################
 
-#Initialize a dictionary to store 50 runs & the generation number for each algorithm 
 for i, function in enumerate(functions.keys()):
     #startingPopulations = [ commons.init_population(10 * dimensions, dimensions, np.array( functions[function]['bounds']().bounds )) for x in range(runs)]
     for j, algo in enumerate(algos.keys()):
