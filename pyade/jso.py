@@ -23,7 +23,7 @@ def apply(population_size: int, individual_size: int, bounds: np.ndarray,
             memory_size: int, callback: Callable[[Dict], Any],
             max_evals: int, seed: Union[int, None],
             population: Union[np.array, None],
-            answer: Union[float,int]) -> [np.ndarray, int]:
+            answer: Union[None, float,int]) -> [np.ndarray, int]:
     """
     Applies the jSO differential evolution algorithm.
     :param population_size: Size of the population.
@@ -190,7 +190,7 @@ def apply(population_size: int, individual_size: int, bounds: np.ndarray,
         best = np.argmin(fitness)   
 
         if fitness[best] == answer:
-                    yield  population[best], fitness[best], population
-                    #break
+                    yield  population[best], fitness[best], population, fitness
+                    break
         else:
-            yield  population[best], fitness[best], population
+            yield  population[best], fitness[best], population, fitness

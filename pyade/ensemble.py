@@ -1,15 +1,14 @@
 # Import all the DE algorithm variants from python Advanced DE libarary
 import numpy as np
-from helper import functions, algos, updateRuns, plotMedians, storeMedianResult, RUNS
+from helper import functions, algos, updateRuns, plotMedians, storeMeanResult, RUNS
 import os
-
-
-
+import commons
+from cec2005real.cec2005 import Function
 ############################################
 #             Directory Setup              #
 ############################################
 local = os.getcwd()
-dirName = local + '\\Graphs2' 
+dirName = local + '/GraphsCEC2005' 
 try:
     # Create target Directory
     os.mkdir(dirName)
@@ -19,37 +18,30 @@ except FileExistsError:
     print("Directory " , dirName ,  " already exists")
 
 
-
 ############################################
 #              Main Function               #
 ############################################
+dims = [2, 10, 30, 50]
+for dim in dims:
+    for funcNum in functions.keys():
+        fbench = Function(funcNum, dim)
+        info = fbench.info()
+        function = fbench.get_eval_function()
+        bounds = [(info['lower'], info['upper'])]
+        startingPopulations = [ commons.init_population(10 * dim, dim, np.array( bounds )) for x in range(RUNS)]
+        for j, algo in enumerate(algos.keys()):
+            for x in range(0, RUNS):
+                params = algo.get_default_params(dim=dim)
+                bounds = np.array(bounds * dim)
+                params['func'] = function
+                params['bounds'] = bounds
+                params['opts'] = None
+                params['answer'] = None
+                params['population'] = startingPopulations[x].copy()
+                algorithm = algo.apply(**params)
+                result =  list(algorithm)
+                updateRuns(funcNum, algo, x, result)
 
-for i, function in enumerate(functions.keys()):
-    #startingPopulations = [ commons.init_population(10 * dimensions, dimensions, np.array( functions[function]['bounds']().bounds )) for x in range(runs)]
-    for j, algo in enumerate(algos.keys()):
-        for x in range(0, RUNS): 
-            # Set the parameters to the default for a problem with 2 variables
-            params = algo.get_default_params(dim=2)
-            # Define the boundaries of the variables   
-            a = functions[function]['bounds']().bounds   
-            bounds = np.array(a)           
-            params['bounds'] = bounds
-            # We indicate the function we want to minimize
-            params['func'] = function
-            params['opts'] = None
-            params['answer'] = functions[function]['answer']
-            params['max_evals'] = 5000
-            #params['population'] = startingPopulations[x]
-            params['population'] = None
+            storeMeanResult(funcNum, algo)
 
-            # We run the algorithm and obtain the results
-            algorithm = algo.apply(**params)
-            result =  list(algorithm)
-            updateRuns(function, algo, x, result)
-
-        #Store algorithms median best over 50 runs    
-        storeMedianResult(function, algo)
-        
-    #######################
-    # plot medians over each function after each algorithm has 50 runs completed
-    plotMedians(function)
+        plotMedians(funcNum, dim)

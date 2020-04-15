@@ -20,7 +20,7 @@ def apply(population_size: int, individual_size: int,
           func: Callable[[np.ndarray], float], opts: Any,
           callback: Callable[[Dict], Any],
           max_evals: int, seed: Union[int, None],
-          answer: float,
+          answer: Union[None, int, float],
           population: [np.ndarray, None]):
     """
     Applies the Self-adaptive differential evolution algorithm (SaDE).
@@ -90,6 +90,7 @@ def apply(population_size: int, individual_size: int,
 
     max_iters = max_evals // population_size
 
+    #print("sade : ", max_iters)
     for current_generation in range(max_iters):
         # 2.1 Mutation
         # 2.1.1 Randomly choose which individuals do each mutation
@@ -149,7 +150,7 @@ def apply(population_size: int, individual_size: int,
         best = np.argmin(fitness)
 
         if fitness[best] == answer:
-                    yield  population[best], fitness[best], population
-                    #break
+                    yield  population[best], fitness[best], population, fitness
+                    break
         else:
-            yield  population[best], fitness[best], population
+            yield  population[best], fitness[best], population, fitness

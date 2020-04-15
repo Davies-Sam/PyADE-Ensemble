@@ -24,7 +24,7 @@ def apply(population_size: int, individual_size: int, bounds: np.ndarray,
             memory_size: int, callback: Callable[[Dict], Any],
             max_evals: int, seed: Union[int, None],
             population: Union[np.array, None],
-            answer: Union[float,int]) -> [np.ndarray, int]:
+            answer: Union[None, float,int]) -> [np.ndarray, int]:
     """
     Applies the SHADE differential evolution algorithm.
     :param population_size: Size of the population.
@@ -84,7 +84,7 @@ def apply(population_size: int, individual_size: int, bounds: np.ndarray,
 
     all_indexes = list(range(memory_size))
     max_iters = max_evals // population_size
-
+    #print("shade : ", max_iters)
     for current_generation in range(max_iters):
         # 2.1 Adaptation
         r = np.random.choice(all_indexes, population_size)
@@ -133,7 +133,7 @@ def apply(population_size: int, individual_size: int, bounds: np.ndarray,
         best = np.argmin(fitness)   
 
         if fitness[best] == answer:
-                    yield  population[best], fitness[best], population
-                    #break
+                    yield  population[best], fitness[best], population, fitness
+                    break
         else:
-            yield  population[best], fitness[best], population 
+            yield  population[best], fitness[best], population, fitness

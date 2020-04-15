@@ -27,7 +27,7 @@ def apply(population_size: int, individual_size: int, bounds: np.ndarray,
             min_population_size: int,
             max_evals: int, seed: Union[int, None],
             population: Union[np.array, None],
-            answer: Union[float,int]) -> [np.ndarray, int]:
+            answer: Union[None, float,int]) -> [np.ndarray, int]:
     """
     Applies the L-SHADE-cnEpSin differential evolution algorithm.
     :param population_size: Size of the population (NP-max)

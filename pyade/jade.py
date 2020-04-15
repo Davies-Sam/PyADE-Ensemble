@@ -22,7 +22,7 @@ def apply(population_size: int, individual_size: int, bounds: np.ndarray,
           p: Union[int, float], c: Union[int, float], callback: Callable[[Dict], Any],
           max_evals: int, seed: Union[int, None],
           population: Union[np.array, None],
-          answer: Union[int, float] ) -> [np.ndarray, int]:
+          answer: Union[None, int, float] ) -> [np.ndarray, int]:
     """
     Applies the JADE Differential Evolution algorithm.
     :param population_size: Size of the population.
@@ -86,7 +86,7 @@ def apply(population_size: int, individual_size: int, bounds: np.ndarray,
     p = np.ones(population_size) * p
     fitness = commons.apply_fitness(population, func, opts)
     max_iters = max_evals // population_size
-
+    #print("jade : ", max_iters)
     for current_generation in range(max_iters):
         # 2.1 Generate parameter values for current generation
         cr = np.random.normal(u_cr, 0.1, population_size)
@@ -112,7 +112,7 @@ def apply(population_size: int, individual_size: int, bounds: np.ndarray,
         best = np.argmin(fitness)   
 
         if fitness[best] == answer:
-                    yield  population[best], fitness[best], population
-                    #break
+                    yield  population[best], fitness[best], population, fitness
+                    break
         else:
-            yield  population[best], fitness[best], population
+            yield  population[best], fitness[best], population, fitness

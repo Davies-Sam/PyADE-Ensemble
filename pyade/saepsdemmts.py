@@ -40,7 +40,7 @@ def apply(population_size: int, individual_size: int,
             callback: Callable[[Dict], Any],
             max_evals: int, seed: Union[int, None],
             population: Union[np.array, None],
-            answer: Union[float,int]):
+            answer: Union[None, float,int]):
     """
     Applies the Self-adaptive differential evolution algorithm (SaDE).
     :param population_size: Size of the population.
@@ -251,6 +251,6 @@ def apply(population_size: int, individual_size: int,
 
         if fitness[best] == answer:
                     yield  population[best], fitness[best], population
-                    #break
+                    break
         else:
             yield  population[best], fitness[best], population

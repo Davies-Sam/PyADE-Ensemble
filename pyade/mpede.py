@@ -27,7 +27,7 @@ def apply(population_size: int, individual_size: int, bounds: np.ndarray,
             ng: int, c: Union[int, float], p: Union[int, float],
             max_evals: int, seed: Union[int, None],
             population: Union[np.array, None],
-            answer: Union[float,int]) -> [np.ndarray, int]:
+            answer: Union[None, float,int]) -> [np.ndarray, int]:
 
     """
     Applies the MPEDE differential evolution algorithm.
@@ -226,7 +226,7 @@ def apply(population_size: int, individual_size: int, bounds: np.ndarray,
         best = np.argmin(fitness)   
 
         if fitness[best] == answer:
-                    yield  population[best], fitness[best], population
-                    #break
+                    yield  population[best], fitness[best], population, fitness
+                    break
         else:
-            yield  population[best], fitness[best], population 
+            yield  population[best], fitness[best], population, fitness

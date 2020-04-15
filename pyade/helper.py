@@ -17,15 +17,18 @@ import matplotlib.animation as animation
 from IPython.display import HTML
 from matplotlib.animation import FFMpegWriter
 import os
-
-
+import subprocess
+from cec2019comp100digit import cec2019comp100digit
+import numpy
 
 ############################################
 #                 GLOBALS                  #
 ############################################
-RUNS = 1
+RUNS = 100
 runsDict = {}
-mediansDict = {}
+medianBestFitnessDict = {}
+medianMeanFitnessDict = {}
+
 
 ############################################
 #       DE Variants & Test Functions       #
@@ -44,242 +47,142 @@ algos = {
     #saepsdemmts : "saepsdemmts" 
 }
 
+
 functions = {
-    problems.Ackley().evaluate : {
-                "name" : "Ackley",
-                "bounds" : problems.Ackley, 
-                "graph" : problems.Ackley().plot3d,
-                "answer" : 0
-                },
-    problems.Rosenbrock().evaluate : {
-            "name" : "Rosenbrock's Saddle",
-            "bounds" : problems.Rosenbrock, 
-            "graph" : problems.Rosenbrock().plot3d,
-            "answer" : 0
-             },
-    problems.EggHolder().evaluate: { #2d
-            "name" : "Eggholder",
-            "bounds" : problems.EggHolder, 
-            "graph" : problems.EggHolder().plot3d,
-            "answer" : -959.6407
-             },
-    problems.Rastrigin().evaluate : {
-            "name" : "Rastigrin",
-            "bounds" : problems.Rastrigin, 
-            "graph" : problems.Rastrigin().plot3d,
-            "answer" : 0
-             },
-    problems.Schwefel().evaluate : {
-            "name" : "Schwefel",
-            "bounds" : problems.Schwefel, 
-            "graph" : problems.Schwefel().plot3d,
-            "answer" : 0
-             },
-    problems.Easom().evaluate : { #2d
-            "name" : "Easom",
-            "bounds" : problems.Easom, 
-            "graph" : problems.Easom().plot3d,
-            "answer" : -1
-             },
-    problems.Levy().evaluate : {
-            "name" : "Levy",
-            "bounds" : problems.Levy, 
-            "graph" : problems.Levy().plot3d,
-            "answer" : 0
-             },
-    problems.Michalewicz().evaluate : {
-            "name" : "Michalewicz",
-            "bounds" : problems.Michalewicz, 
-            "graph" : problems.Michalewicz().plot3d,
-            "answer" : -1.8013
-             },
-    problems.StyblinskiTang().evaluate : {
-            "name" : "StyblinskiTang", 
-            "bounds" : problems.StyblinskiTang, 
-            "graph" : problems.StyblinskiTang().plot3d,
-            "answer" : -39.16599 * 2
-             },
-    problems.CrossInTray().evaluate : {
-            "name" : "CrossInTray",
-            "bounds" : problems.CrossInTray, 
-            "graph" : problems.CrossInTray().plot3d,
-            "answer" : -2.06261
-             },
-    problems.DixonPrice().evaluate : {
-            "name" : "DixonPrice",
-            "bounds" : problems.DixonPrice, 
-            "graph" : problems.DixonPrice().plot3d,
-            "answer" : 0
-             },
-    problems.HolderTable().evaluate : {
-            "name" : "HolderTable",
-            "bounds" : problems.HolderTable, 
-            "graph" : problems.HolderTable().plot3d,
-            "answer" : -19.2085
-             }
-    }
+         1 : {
+                "name" : "Shifted Sphere Function",          
+         },   
+         2 : {
+                "name" : "Shifted Schwefel's Problem 1.2",          
+         },
+         3 : {
+                "name" : "Shifted Rotated High Conditioned Elliptic Function",      
+         },
+         4 : {
+                "name" : "Shifted Schwefel's Problem 1.2 with Noise in Fitness",           
+         },
+         5 : {
+                "name" : "Schwefel's Problem 2.6 with Global Optimum on Bounds",     
+         },
+         6 : {
+                "name" : "Shifted Rosenbrock's Function",       
+         },
+         7 : {
+                "name" : "Shifted Rotated Griewnk's Function without Bounds",        
+         },
+         8 : {
+                "name" : "Shifted Rotated Ackley's Function with Global Optimum on Bounds",      
+         },
+         9 : {
+                "name" : "Shifted Rastrigin's Function",          
+         },
+         10 : {
+                "name" : "Shifted Rotated Rastrigin's Function",         
+         },
+         11 : {
+                "name" : "Shifted Rotated Weierstrass Function",        
+         },
+         12 : {
+                "name" : "Schwefel's Problem 2.13",         
+         }
+}
 
 ############################################
 #         MATPLOTLIB PLOTTING              #
 ############################################
 
-def updateRuns(function: Callable, algo: ModuleType, x: int, result: Union[float, int]):
-        """Updates the runs dictionary"""
-        runsDict[(function, algo, x)] = result
+def updateRuns(funcNum: int, algo: ModuleType, x: int, result: Union[float, int]):
+       """Updates the runs dictionary"""
+       runsDict[(funcNum, algo, x)] = result
 
-def storeMedianResult(function: Callable, algo: ModuleType ):
-        """Calculates the median fitness per generation for an algorithm's performance over a function using runsDict and then updates mediansDict"""
-        genlimit = [len(runsDict[key]) for key in runsDict.keys()]
-        limitIndex = np.argmax( genlimit )
-        limit = genlimit[limitIndex]
-        generations = [ [] for i in range(limit) ]
+def storeMeanResult(funcNum: int, algo: ModuleType ):
+       """Calculates the median fitness per generation for an algorithm's performance over a function using runsDict and then updates mediansDict"""
+       genlimit = [len(runsDict[key]) for key in runsDict.keys()]
+       limitIndex = np.argmax( genlimit )
+       limit = genlimit[limitIndex]
+       generationsBestFitness = [ [] for i in range(limit) ]
+       generationsMeanFitness = [ [] for i in range(limit) ]
 
-        #each key is 1 run
-        runs = [key for key in runsDict.keys() if function in key if algo in key]
+       #each key is 1 run
+       runs = [key for key in runsDict.keys() if funcNum in key if algo in key]
+       #for every run
+       for key in runs:
+              #for every generation 
+              for x in range(0, len(runsDict[key])):
+                     #print("\nbest vector : ", runsDict[key][x][0])
+                     #print("\nbest fitness : ", runsDict[key][x][1])
+                     #print("\nall vectors : ", runsDict[key][x][2])
+                     #print("\nall fitness : ", numpy.sort(runsDict[key][x][3]))         
+                     generationsBestFitness[x].append(runsDict[key][x][1])
+                     generationsMeanFitness[x].append(np.mean(runsDict[key][x][3]))
+                     
+       #create and store median for each array of generation values
+       mediansBestFitArr = []
+       mediansMeanFitArr = []
 
-        for key in runs:
-                for x in range(0, len(runsDict[key])):
-                #print('run %s - gen %s ||' % (key[2], x), runsDict[key][x][1] )
-                # for each run (key), get gen 'x' best fitness
-                        generations[x].append(runsDict[key][x][1])
+       for gen in generationsBestFitness:
+              mediansBestFitArr.append( np.median(gen) )
+       for gen in generationsMeanFitness:
+              mediansMeanFitArr.append( np.median(gen))
 
-        #create and store median for each array of generation values
-        medians = []
-        for gen in generations:
-                medians.append( np.median(gen) )
-        #store the medians array with corresponding algo and function
-        mediansDict[ (algos[algo], functions[function]['name']) ] = medians
-        animate2D(function,algo)
-        plt.clf()
+       medianBestFitnessDict[ (algos[algo], functions[funcNum]['name']) ] = mediansBestFitArr
+       medianMeanFitnessDict[ (algos[algo], functions[funcNum]['name']) ] = mediansMeanFitArr
+      
+       plt.clf()
 
+def plotMedians(funcNum: int, dim: int):
+       """Creates a single matplot graph comparing all algorithms over a function"""
+       mBestFitness = [key for key in medianBestFitnessDict.keys() if functions[funcNum]['name'] in key]
+       plt.clf()
 
-def plotMedians(function: Callable):
-        """Creates a single matplot graph comparing all algorithms over a function"""
-        test = [key for key in mediansDict.keys() if functions[function]['name'] in key]
-        plt.clf()
+       for key in mBestFitness:
+              values = medianBestFitnessDict[key]
+              answerAt = 'Not Found'
+              for i, value in enumerate(values):
+                     if value == 0:
+                            answerAt = i
+                            break
+              plt.plot(values, label='%s-%s' % (key[0], answerAt), alpha=0.9)
+       plt.legend(loc='upper center', bbox_to_anchor=(.95, 1),
+              ncol=1, fancybox=True, shadow=True)
 
-        for key in test:
-                #choice = np.random.choice(options)
-                values = mediansDict[key]
-                #vals = [val for val in values if val != functions[function]['answer']]
-                plt.plot(values, label='%s ' % key[0], alpha=0.9)
-                #options.remove(choice)
-        plt.legend(loc='upper center', bbox_to_anchor=(.95, 1),
-                ncol=1, fancybox=True, shadow=True)
- 
-        ## negative plots look bad, fix this, add animations with the graphs.
-        if functions[function]['answer'] < 0:
-                plt.yscale('linear')
-                
-        else:
-                plt.yscale('log')
+       plt.yscale('symlog')
+       plt.autoscale()
+       plt.xlabel('$Generations$')
 
-        plt.autoscale()
-        plt.xlabel('$Generations$')
-     
-        funcName = functions[function]['name']
-        name = '$%s$  - median of  %s  runs' % (funcName,  RUNS)
-        plt.title(name)
+       funcName = functions[funcNum]['name']
+       name = '$%s$  - D = %s, median-best, %s runs' % (funcName, dim, RUNS)
+       plt.title(name)
 
-        newpath = 'Graphs2/%s' % (funcName)
-        if not os.path.exists(newpath):
-                os.makedirs(newpath)
-        plt.savefig('Graphs2/%s/%s.png' % (funcName, name) )
-        plt.show()    
-        plt.clf()
-        
-############################################
-#               Animations                 #
-############################################
+       newpath = 'GraphsCEC2005/%s' % (funcName)
+       if not os.path.exists(newpath):
+              os.makedirs(newpath)
+       plt.savefig('%s/%s.png' % (newpath, name) )
+       plt.show()    
+       plt.clf()
 
-def animate3D(function: Callable, algo: ModuleType):
-        """Creates a 3D animation of one algo on one plot"""
-        results = runsDict[(function,algo, 0)]
-        fig = plt.figure()
-        camera = Camera(fig)
+       mMeanFitness = [key for key in medianMeanFitnessDict.keys() if functions[funcNum]['name'] in key]
+       plt.clf()
 
-        for gen in results:
-                x = [x1[0] for x1 in gen[2]]
-                y = [x2[1] for x2 in gen[2]]
-                z = gen[3]
-                
-                ax = fig.add_subplot(111, projection='3d')
-                test = functions[function]['graph'](ax3d=ax)
-                test.scatter(x,y,z)
-                
-                camera.snap()
-                #plt.show()
-                #exit()
-        funcName = functions[function]['name']
-        newpath = '/Graphs/%s' % (funcName)
-        if not os.path.exists(newpath):
-                os.makedirs(newpath)
+       ##### mean fitness graph ######
+       for key in mMeanFitness:
+              values = medianMeanFitnessDict[key]
+              plt.plot(values, label='%s' % key[0], alpha=0.9)
+       plt.legend(loc='upper center', bbox_to_anchor=(.95, 1),
+              ncol=1, fancybox=True, shadow=True)
 
-        animation = camera.animate()
-        name = funcName + '' + algos[algo]
-        animation.save('/Graphs/%s/3D%s.mp4' % (funcName, name))
-        plt.close()
+       plt.yscale('symlog')
+       plt.autoscale()
+       plt.xlabel('$Generations$')
 
-        #######################
-        # this is how to scatter solutions over the 3d graph to make animations
-        #fig = plt.figure(figsize=(12,8))
-        #ax = fig.add_subplot(111, projection='3d')
-        #test = functions[function]['graph'](ax3d=ax)
-        #test.scatter([1,2,3], [1,2,3], [1,2,3])
-        #plt.show()   
-    
-def animate2D(function, algo):
-        """Creates a 2D animation of one algo on one plot"""
-        results = runsDict[(function,algo, 0)]
-        fig = plt.figure(figsize=(12,8))
-        camera = Camera(fig)
+       funcName = functions[funcNum]['name']
+       name = '$%s$-D=%s, median-mean, %sruns' % (funcName, dim, RUNS)
+       plt.title(name)
 
-        for i, gen in enumerate(results):
-                x = [x1[0] for x1 in gen[2]]
-                y = [x2[1] for x2 in gen[2]]
-                fig, ax =functions[function]['bounds']().plot2d(figure=fig)
-                ax.scatter(x,y)
-                ax.text(0.5, 1.01, 'Generation %s' % i, transform=ax.transAxes)
-                camera.snap()
-                #plt.show()
-
-        funcName = functions[function]['name']
-        newpath = 'Graphs2/%s' % (funcName)
-        if not os.path.exists(newpath):
-                os.makedirs(newpath)
-
-        animation = camera.animate()
-        name = funcName + '' +algos[algo]
-
-        try:
-                animation.save('Graphs2/%s/2D%s.mp4' % (funcName, name))
-        except subprocess.CalledProcessError:
-                pass
-        plt.close()
-
-def animate2D_all(function, algo):
-        """Creates a 2D animation of all algos on one plot"""
-        results = runsDict[(function,algo, 0)]
-        fig = plt.figure(figsize=(12,8))
-        camera = Camera(fig)
-
-        for i, gen in enumerate(results):
-                x = [x1[0] for x1 in gen[2]]
-                y = [x2[1] for x2 in gen[2]]
-                fig, ax =functions[function]['bounds']().plot2d(figure=fig)
-                ax.scatter(x,y)
-                ax.text(0.5, 1.01, 'Generation %s' % i, transform=ax.transAxes)
-                camera.snap()
-                #plt.show()
-
-        funcName = functions[function]['name']
-        newpath = 'Graphs/%s' % (funcName)
-        if not os.path.exists(newpath):
-                os.makedirs(newpath)
-
-        animation = camera.animate()
-        name = funcName + '' +algos[algo]
-        animation.save('/Graphs/%s/2D%s.mp4' % (funcName, name), writer='imagemagick' )
-        plt.close()
-
-
+       newpath = 'GraphsCEC2005/%s' % (funcName)
+       if not os.path.exists(newpath):
+              os.makedirs(newpath)
+       plt.savefig('%s/%s.png' % (newpath, name) )
+       plt.show()    
+       plt.clf()
+       

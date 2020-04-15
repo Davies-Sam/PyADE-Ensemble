@@ -3,7 +3,6 @@ import commons
 from typing import Callable, Union, Dict, Any
 
 
-
 def get_default_params(dim: int) -> dict:
     """
     Returns the default parameters of the Differential Evolution Algorithm
@@ -17,7 +16,6 @@ def get_default_params(dim: int) -> dict:
             'f': 0.5, 'cr': 0.9, 'individual_size': dim, 'population_size': 10 * dim, 'opts': None}
 
 
-
 def apply(population_size: int, individual_size: int, f: Union[float, int],
         cr: Union[float, int], bounds: np.ndarray,
         func: Callable[[np.ndarray], float], opts: Any,
@@ -26,8 +24,7 @@ def apply(population_size: int, individual_size: int, f: Union[float, int],
         max_evals: int, 
         seed: Union[int, None],
         population: Union[np.ndarray, None],
-        answer: Union[int, float] ) -> [np.ndarray, int]:
-
+        answer: Union[None,int, float] ) -> [np.ndarray, int]:
 
     """
     Applies the standard differential evolution algorithm.
@@ -60,6 +57,7 @@ def apply(population_size: int, individual_size: int, f: Union[float, int],
     :return: A pair with the best solution found and its fitness.
     :rtype [np.ndarray, int]
     """
+
     # 0. Check parameters are valid
     if type(population_size) is not int or population_size <= 0:
         raise ValueError("population_size must be a positive integer.")
@@ -88,7 +86,6 @@ def apply(population_size: int, individual_size: int, f: Union[float, int],
     if type(seed) is not int and seed is not None:
         raise ValueError("seed must be an integer or None.")
 
-
     # 1. Initialization
     np.random.seed(seed)
     if population is None:
@@ -103,7 +100,7 @@ def apply(population_size: int, individual_size: int, f: Union[float, int],
     #use self.population and self.fitness - move the loop into a step function
 
     max_iters = max_evals // population_size
-    
+    #print("de : ", max_iters)
     for current_generation in range(max_iters):
 
         mutated = commons.binary_mutation(population, f, bounds)
@@ -118,7 +115,7 @@ def apply(population_size: int, individual_size: int, f: Union[float, int],
         fitness[indexes] = c_fitness[indexes]
 
         #print(locals())
-
+        
         best = np.argmin(fitness)
 
         if callback is not None:
@@ -128,6 +125,6 @@ def apply(population_size: int, individual_size: int, f: Union[float, int],
 
         if fitness[best] == answer:
                     yield  population[best], fitness[best], population, fitness
-                    #break
+                    break
         else:
             yield  population[best], fitness[best], population, fitness
