@@ -1,6 +1,1 @@
-1. xslx output
-2. create ensemble of DE, JADE, SADE, SHADE
-3. parallelize the ensemble
-4. test the ensemble
-5. compare results against the variants running indiviually 
-6
+
