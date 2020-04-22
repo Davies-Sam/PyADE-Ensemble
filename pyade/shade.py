@@ -85,6 +85,7 @@ def apply(population_size: int, individual_size: int, bounds: np.ndarray,
     all_indexes = list(range(memory_size))
     max_iters = max_evals // population_size
     #print("shade : ", max_iters)
+    results = []
     for current_generation in range(max_iters):
         # 2.1 Adaptation
         r = np.random.choice(all_indexes, population_size)
@@ -133,7 +134,8 @@ def apply(population_size: int, individual_size: int, bounds: np.ndarray,
         best = np.argmin(fitness)   
 
         if fitness[best] == answer:
-                    yield  population[best], fitness[best], population, fitness
-                    break
+                results.append( (  population[best], fitness[best], population, fitness ) )
+                break
         else:
-            yield  population[best], fitness[best], population, fitness
+            results.append( (  population[best], fitness[best], population, fitness ) )
+    return results

@@ -87,6 +87,7 @@ def apply(population_size: int, individual_size: int, bounds: np.ndarray,
     fitness = commons.apply_fitness(population, func, opts)
     max_iters = max_evals // population_size
     #print("jade : ", max_iters)
+    results = []
     for current_generation in range(max_iters):
         # 2.1 Generate parameter values for current generation
         cr = np.random.normal(u_cr, 0.1, population_size)
@@ -112,7 +113,8 @@ def apply(population_size: int, individual_size: int, bounds: np.ndarray,
         best = np.argmin(fitness)   
 
         if fitness[best] == answer:
-                    yield  population[best], fitness[best], population, fitness
-                    break
+            results.append( (  population[best], fitness[best], population, fitness ) )
+            break
         else:
-            yield  population[best], fitness[best], population, fitness
+            results.append( (  population[best], fitness[best], population, fitness ) )
+    return results

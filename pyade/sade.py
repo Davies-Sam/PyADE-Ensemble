@@ -91,6 +91,7 @@ def apply(population_size: int, individual_size: int,
     max_iters = max_evals // population_size
 
     #print("sade : ", max_iters)
+    results = []
     for current_generation in range(max_iters):
         # 2.1 Mutation
         # 2.1.1 Randomly choose which individuals do each mutation
@@ -150,7 +151,8 @@ def apply(population_size: int, individual_size: int,
         best = np.argmin(fitness)
 
         if fitness[best] == answer:
-                    yield  population[best], fitness[best], population, fitness
-                    break
+                results.append( (  population[best], fitness[best], population, fitness ) )
+                break
         else:
-            yield  population[best], fitness[best], population, fitness
+            results.append( (  population[best], fitness[best], population, fitness ) )
+    return results

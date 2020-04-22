@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 from math import e 
 import matplotlib.gridspec as gridspec
 from celluloid import Camera
-import commons, de, jade, sade, ilshade, shade, jso, lshade, lshadecnepsin, mpede, saepsdemmts
+import commons, de, jade, sade, ilshade, shade, jso, lshade, lshadecnepsin, mpede, saepsdemmts, newEnsembleApproach
 import yabox.problems as problems
 import landscapes.single_objective as landscapes
 from cycler import cycler
@@ -18,13 +18,12 @@ from IPython.display import HTML
 from matplotlib.animation import FFMpegWriter
 import os
 import subprocess
-from cec2019comp100digit import cec2019comp100digit
 import numpy
 
 ############################################
 #                 GLOBALS                  #
 ############################################
-RUNS = 100
+RUNS = 25
 runsDict = {}
 medianBestFitnessDict = {}
 medianMeanFitnessDict = {}
@@ -39,6 +38,7 @@ algos = {
     sade : "sade",
     jade :"jade",
     shade : "shade",
+    newEnsembleApproach: "ensemble"
     #lshade : "lshade", 
     #ilshade : "ilshade", 
     #jso : "jso", 
@@ -112,9 +112,11 @@ def storeMeanResult(funcNum: int, algo: ModuleType ):
                      #print("\nbest vector : ", runsDict[key][x][0])
                      #print("\nbest fitness : ", runsDict[key][x][1])
                      #print("\nall vectors : ", runsDict[key][x][2])
-                     #print("\nall fitness : ", numpy.sort(runsDict[key][x][3]))         
+                     #print("\nall fitness : ", numpy.sort(runsDict[key][x][3]))   
+                           
                      generationsBestFitness[x].append(runsDict[key][x][1])
-                     generationsMeanFitness[x].append(np.mean(runsDict[key][x][3]))
+                     #print('ERROR HERE %s ALGO %s : '  % (runsDict[key][x][3], algo)) 
+                     generationsMeanFitness[x].append(np.median(runsDict[key][x][3]))
                      
        #create and store median for each array of generation values
        mediansBestFitArr = []
@@ -123,7 +125,7 @@ def storeMeanResult(funcNum: int, algo: ModuleType ):
        for gen in generationsBestFitness:
               mediansBestFitArr.append( np.median(gen) )
        for gen in generationsMeanFitness:
-              mediansMeanFitArr.append( np.median(gen))
+              mediansMeanFitArr.append( np.mean(gen))
 
        medianBestFitnessDict[ (algos[algo], functions[funcNum]['name']) ] = mediansBestFitArr
        medianMeanFitnessDict[ (algos[algo], functions[funcNum]['name']) ] = mediansMeanFitArr
@@ -154,7 +156,7 @@ def plotMedians(funcNum: int, dim: int):
        name = '$%s$  - D = %s, median-best, %s runs' % (funcName, dim, RUNS)
        plt.title(name)
 
-       newpath = 'GraphsCEC2005/%s' % (funcName)
+       newpath = 'ensembleGraphs/%s' % (funcName)
        if not os.path.exists(newpath):
               os.makedirs(newpath)
        plt.savefig('%s/%s.png' % (newpath, name) )
@@ -175,11 +177,12 @@ def plotMedians(funcNum: int, dim: int):
        plt.autoscale()
        plt.xlabel('$Generations$')
 
+
        funcName = functions[funcNum]['name']
        name = '$%s$-D=%s, median-mean, %sruns' % (funcName, dim, RUNS)
        plt.title(name)
 
-       newpath = 'GraphsCEC2005/%s' % (funcName)
+       newpath = 'ensembleGraphs/%s' % (funcName)
        if not os.path.exists(newpath):
               os.makedirs(newpath)
        plt.savefig('%s/%s.png' % (newpath, name) )

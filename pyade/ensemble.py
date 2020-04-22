@@ -8,7 +8,7 @@ from cec2005real.cec2005 import Function
 #             Directory Setup              #
 ############################################
 local = os.getcwd()
-dirName = local + '/GraphsCEC2005' 
+dirName = local + '/ensembleGraphs' 
 try:
     # Create target Directory
     os.mkdir(dirName)
@@ -21,7 +21,7 @@ except FileExistsError:
 ############################################
 #              Main Function               #
 ############################################
-dims = [2, 10, 30, 50]
+dims = [2, 10, 30]
 for dim in dims:
     for funcNum in functions.keys():
         fbench = Function(funcNum, dim)
@@ -35,13 +35,19 @@ for dim in dims:
                 bounds = np.array(bounds * dim)
                 params['func'] = function
                 params['bounds'] = bounds
+                #params['max_evals'] = 10000
                 params['opts'] = None
                 params['answer'] = None
                 params['population'] = startingPopulations[x].copy()
-                algorithm = algo.apply(**params)
-                result =  list(algorithm)
+                result = algo.apply(**params)
+                """
+                print(type(result), algo)
+                print(result[-1])
+                print(result[-1][3])
+                print(algo, len(result))
+                """
                 updateRuns(funcNum, algo, x, result)
-
+       
             storeMeanResult(funcNum, algo)
 
         plotMedians(funcNum, dim)
