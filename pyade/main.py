@@ -8,7 +8,7 @@ from cec2005real.cec2005 import Function
 #             Directory Setup              #
 ############################################
 local = os.getcwd()
-dirName = local + '/ensembleGraphs' 
+dirName = local + '/ensembleGraphsk=3w2Shuffle' 
 try:
     # Create target Directory
     os.mkdir(dirName)
@@ -43,9 +43,9 @@ for dim in dims:
                 """
                 print(type(result), algo)
                 print(result[-1])
-                print(result[-1][3])
-                print(algo, len(result))
-                """
+                print(result[-1]
+                print(algo, len(result))[3])      
+                """            
                 updateRuns(funcNum, algo, x, result)
        
             storeMeanResult(funcNum, algo)

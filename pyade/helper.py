@@ -23,7 +23,7 @@ import numpy
 ############################################
 #                 GLOBALS                  #
 ############################################
-RUNS = 25
+RUNS = 10
 runsDict = {}
 medianBestFitnessDict = {}
 medianMeanFitnessDict = {}
@@ -34,11 +34,12 @@ medianMeanFitnessDict = {}
 ############################################
 
 algos = {
-    de : 'de',
-    sade : "sade",
-    jade :"jade",
-    shade : "shade",
-    newEnsembleApproach: "ensemble"
+       newEnsembleApproach: "ensemble",
+       de : 'de',
+       sade : "sade",
+       jade :"jade",
+       shade : "shade"
+    
     #lshade : "lshade", 
     #ilshade : "ilshade", 
     #jso : "jso", 
@@ -136,27 +137,32 @@ def plotMedians(funcNum: int, dim: int):
        """Creates a single matplot graph comparing all algorithms over a function"""
        mBestFitness = [key for key in medianBestFitnessDict.keys() if functions[funcNum]['name'] in key]
        plt.clf()
-
+       answersAt = {}
        for key in mBestFitness:
               values = medianBestFitnessDict[key]
-              answerAt = 'Not Found'
+              answersAt[key] = 'Not Found'
               for i, value in enumerate(values):
                      if value == 0:
-                            answerAt = i
+                            answersAt[key] = i
                             break
-              plt.plot(values, label='%s-%s' % (key[0], answerAt), alpha=0.9)
+              #move plt.plot outside of this forloop to another one, and only plot x axis up to the last algo to find an answer # of gen.
+              plt.plot(values, label='%s-%s' % (key[0], answersAt[key]), alpha=0.9)
        plt.legend(loc='upper center', bbox_to_anchor=(.95, 1),
               ncol=1, fancybox=True, shadow=True)
-
+       xlimList = [answersAt[key] for key in mBestFitness if isinstance(answersAt[key], int) == True]
+       #print("printing answersAt: %s", max([answersAt[key] for key in mBestFitness if isinstance(answersAt[key], int) == True]))
+       if xlimList:
+              plt.xlim(left=0, right=max(xlimList))
        plt.yscale('symlog')
-       plt.autoscale()
+       #plt.ylim(bottom=0)
+       #plt.autoscale()
        plt.xlabel('$Generations$')
 
        funcName = functions[funcNum]['name']
        name = '$%s$  - D = %s, median-best, %s runs' % (funcName, dim, RUNS)
        plt.title(name)
 
-       newpath = 'ensembleGraphs/%s' % (funcName)
+       newpath = 'ensembleGraphsk=3w2Shuffle/%s' % (funcName)
        if not os.path.exists(newpath):
               os.makedirs(newpath)
        plt.savefig('%s/%s.png' % (newpath, name) )
@@ -182,7 +188,7 @@ def plotMedians(funcNum: int, dim: int):
        name = '$%s$-D=%s, median-mean, %sruns' % (funcName, dim, RUNS)
        plt.title(name)
 
-       newpath = 'ensembleGraphs/%s' % (funcName)
+       newpath = 'ensembleGraphsk=3w2Shuffle/%s' % (funcName)
        if not os.path.exists(newpath):
               os.makedirs(newpath)
        plt.savefig('%s/%s.png' % (newpath, name) )

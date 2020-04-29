@@ -4,10 +4,9 @@ import ray
 from concurrent.futures import ProcessPoolExecutor as Executor
 import concurrent.futures
 from helper import  de, jade, sade, shade
-
-K = 5
+import os
+K = 3
 DIM = 0
-ensemble = [de, sade, jade, shade]
 
 def get_default_params(dim: int) -> dict:
     """
@@ -23,7 +22,7 @@ def get_default_params(dim: int) -> dict:
     return {'callback': None, 'max_evals': 10000 * dim, 'seed': None,
             'individual_size': dim, 'population_size': 10 * dim, 'opts': None}
 
-
+# pop size is the num of evals 
 def apply(population_size: int, individual_size: int, bounds: np.ndarray,
         func, opts,
         callback,
@@ -31,114 +30,163 @@ def apply(population_size: int, individual_size: int, bounds: np.ndarray,
         seed,
         population,
         answer ) :
-    
-    #maxEvals = int(max_evals / len(ensemble))
-    maxEvals = int( max_evals / K )
-    #maxEvals = max_evals
+
+    ensemble = [de, sade, jade, shade]
 
     algoParams = {}
-    algoBestSeen = {}
-    for algo in ensemble:
+
+
+    n = int(population_size / len(ensemble))
+    
+    np.random.shuffle(population)
+    
+    splitPopulation = [population[i:i + n] for i in range(0, len(population), n)]
+
+    for i, algo in enumerate(ensemble):
         params = algo.get_default_params(dim=DIM)
         bounds = np.array(bounds * DIM)
         params['func'] = func
         params['bounds'] = bounds
         params['opts'] = None
         params['answer'] = None
-        params['max_evals'] = maxEvals
-        params['population'] = population.copy()
+        params['population'] = splitPopulation[i].copy()
+        params['population_size'] = len(params['population'])
         algoParams[algo] = params
 
     finalResult = []
+    evals = 0
+    numGens = 0
 
-    for i in range(0, K):
-        results = {}
-        results.clear()
-
+    while evals < max_evals:
+        results = {de : [], sade : [], jade : [], shade : []}  
+        ensemble = [algo for algo in ensemble if algoParams[algo]['population_size'] > 0]
+        ########### shuffle the population amongst the variants again. ##############
         
-        bucket_sizes = [ len(algoParams[algo]['population']) for algo in ensemble]
-        
-        #print(bucket_sizes)
-        N = maxEvals
-        p = [entry  / float(sum(bucket_sizes)) for entry in bucket_sizes ]
-        #print(p)
-        limits = np.random.multinomial(N, p)
-        limits = [int(limit) for limit in limits]
-        #make integer limits.
-        #print(limits)
-        evalLimitDict = {de: limits[0], jade: limits[1], sade: limits[2] , shade: limits[3] }
+        if len(ensemble) > 1:
+            totalPop = np.concatenate([algoParams[algo]['population'] for algo in ensemble])
+            np.random.shuffle(totalPop)
+            #print('total pop size before splitting: %s' % len(totalPop))
+            for algo in ensemble:
+                #print('algo %s, pop %s' % (algo, algoParams[algo]['population']))
+                #print('algo %s, size %s, old pop: %s' % (algo, algoParams[algo]['population_size'], algoParams[algo]['population']))
+                size = algoParams[algo]['population_size']    
+                algoParams[algo]['population'] = totalPop[:size]
+                totalPop = totalPop[size:]
+                #print('algo %s, pop %s' % (algo, algoParams[algo]['population']))
+                #print('total pop size in splitting : %s' % len(totalPop))
+                #print('algo %s, size %s, new pop: %s' % (algo, algoParams[algo]['population_size'], algoParams[algo]['population']))
 
-        for algo in ensemble:
-            params = algoParams[algo] 
-            params['population'] = algoParams[algo]['population'].copy()
-            params['population'].flags.writeable = True
-            params['population_size'] = len(algoParams[algo]['population'])
-            params['max_evals'] = evalLimitDict[algo]
-            if algo == jade:
-                params['p'] = max( .05, 3 / params['population_size'] )
-            algoParams[algo] = params
-            result = algo.apply(**params)
-            results[algo] = result
 
-        #update every algo's population accordingly.
+        for i in range(0, K):    
+            #print(ensemble)
+            for algo in ensemble:
+                params = algoParams[algo] 
+                popSize = algoParams[algo]['population_size']
+                #params['population'].flags.writeable = True
+                params['population_size'] = popSize
+                params['max_evals'] = popSize
+                algoParams[algo] = params
+                
+                if algo == jade:
+                    params['p'] = max( .05, 3 / params['population_size'] )
+                result = algo.apply(**params)
+                  
+                for res in result:
+                    results[algo].append(res)
+                print(len(results[algo]))        
+                algoParams[algo]['population'] = results[algo][-1][2].copy()
+                #print(type(algoParams[algo]['population']))
+                evals += popSize
+            numGens += 1
+
+            if evals == max_evals:
+                break
+ 
         fitnesses = {}
+        fitnesses.clear()
         bestFitnesses = {}
+        bestFitnesses.clear()
+        fitnessHistory = {}
+        #print(ensemble)
+        if len(ensemble) > 1:
+            for algo in ensemble:
+                if algoParams[algo]['population_size'] != 0:
+                    algoParams[algo]['population'] = results[algo][-1][2].copy()
+                    fitnesses[algo] = results[algo][-1][3].copy()
+                    fitnessHistory[algo] =  [ results[algo][x][3] for x, gen in enumerate(results[algo]) ]
+                    bestFitnesses[algo] = results[algo][-1][1].copy()
 
-        for algo in ensemble:
-            algoParams[algo]['population'] = results[algo][-1][2].copy()
-            fitnesses[algo] = results[algo][-1][3].copy()
-            bestFitnesses[algo] = results[algo][-1][1].copy()
-            algoBestSeen[algo] = bestFitnesses[algo]
+            scores = [ (bestFitnesses[algo], algo) for algo in bestFitnesses.keys()]
 
-        scores = [ (bestFitnesses[algo], algo) for algo in ensemble]
-        scores.sort(key=lambda x: x[0])
+            test = [ (fitnessHistory[algo][0] - fitnessHistory[algo][-1]) / (algoParams[algo]['population_size'] * K)  for algo in fitnessHistory.keys()] 
+            #implement ratio of improvement over evals
+            #print(test)
+            #newScores = max ( test )
+            #print('new :', newScores)
 
-        best = scores[0][1]
-        worst = scores[-1][1]
 
-        bestPopulation = algoParams[best]['population'].copy()
-        worstPopulation = algoParams[worst]['population'].copy()
+            scores.sort(key=lambda x: x[0])
 
-        bestFitnesses = fitnesses[best]
-        worstFitnesses = fitnesses[worst]
-        #bestIndex = np.argmin(bestFitnesses)
-        bestList = []
-        worstList = []
 
-        for j, org in enumerate(bestPopulation):
-            bestList.append( (bestPopulation[j], bestFitnesses[j]) )
-        for k, org in enumerate(worstPopulation):
-            worstList.append( (worstPopulation[k], worstFitnesses[k]) )
+            #print("scores : ", scores)
 
-        bestList.sort(key=lambda  x: x[1])
-        worstList.sort(key=lambda x: x[1])
+            best = scores[0][1]
+            worst = scores[-1][1]
+            
+            bestPopulation = algoParams[best]['population'].copy()
+            worstPopulation = algoParams[worst]['population'].copy()
 
-        oldLenB = len(bestList)
-        oldLenW = len(worstList)
-    
-        for x in range(0, 2):
-            bestList.append( worstList.pop() )
+            bestFitnesses = fitnesses[best]
+            worstFitnesses = fitnesses[worst]
+            #bestIndex = np.argmin(bestFitnesses)
+            bestList = []
+            worstList = []
+       
+            for j, org in enumerate(bestPopulation):
+                bestList.append( (bestPopulation[j], bestFitnesses[j]) )
+            for k, org in enumerate(worstPopulation):
+                worstList.append( (worstPopulation[k], worstFitnesses[k]) )
 
-        assert oldLenW - len(worstList) % 2 != 0, "migration error"
-        assert len(bestList) - oldLenB % 2 != 0, "migration error"
+            bestList.sort(key=lambda  x: x[1])
+            worstList.sort(key=lambda x: x[1])
 
-        bestPopulation = np.array([item[0] for item in bestList])
-        worstPopulation = np.array([item[0] for item in worstList])
+            oldLenB = len(bestList)
+            oldLenW = len(worstList)
+            
+            for x in range(0, 2):
+                if len(worstList) != 0:
+                    bestList.append( worstList.pop() )
 
-        algoParams[best]['population'] = bestPopulation.copy()
-        algoParams[worst]['population'] = worstPopulation.copy()
-        
+            assert oldLenW - len(worstList) == len(bestList) - oldLenB , "migration error"
+           
 
-        bestOrg = np.array( [gen[0] for gen in results[best] ] )
-        bestFit = np.array( [gen[1] for gen in results[best] ] )
+            bestPopulation = np.array([item[0] for item in bestList])
+            worstPopulation = np.array([item[0] for item in worstList])
 
-        pop = np.array( [gen[2] for gen in results[best]] ) 
-        fit = np.array( [gen[3] for gen in results[best] ] ) 
+            algoParams[best]['population'] = bestPopulation.copy()
+            algoParams[worst]['population'] = worstPopulation.copy()  
+            algoParams[best]['population_size'] = len(algoParams[best]['population'])
+            algoParams[worst]['population_size'] = len(algoParams[worst]['population'])
 
-        for i, gen in enumerate(results[best]):
-            finalResult.append( (bestOrg[i], bestFit[i], pop, fit) )
-    
-    
+            bestOrg = np.array( [gen[0].copy() for gen in results[best] ] )
+            bestFit = np.array( [gen[1].copy() for gen in results[best] ] )
+
+            pop = np.array( [ gen[2].copy() for gen in results[algo]  for algo in ensemble]  ) 
+            fit = np.array( [ gen[3].copy() for gen in results[algo]  for algo in ensemble] ) 
+
+            for i, gen in enumerate(results[best]):
+                finalResult.append( (bestOrg[i], bestFit[i], pop, fit) )
+
+        elif len(ensemble) == 1:
+            bestOrg = np.array( [gen[0].copy() for gen in results[ensemble[0]] ] )
+            bestFit = np.array( [gen[1].copy() for gen in results[ensemble[0]] ] )
+
+            pop = np.array( [gen[2].copy() for gen in results[ensemble[0]]] ) 
+            fit = np.array( [gen[3].copy() for gen in results[ensemble[0]] ] ) 
+
+            for i, gen in enumerate(results[ensemble[0]]):
+                finalResult.append( (bestOrg[i], bestFit[i], pop, fit) )
+    ####print('numGens: ', numGens)
     return finalResult
-    #add dict to track algo pop growth
+        #add dict to track algo pop growth
     
