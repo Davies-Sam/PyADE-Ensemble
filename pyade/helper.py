@@ -20,6 +20,21 @@ import os
 import subprocess
 import numpy
 
+
+############################################
+#             Directory Setup              #
+############################################
+local = os.getcwd()
+dirName = local + '/Dec28' 
+try:
+    # Create target Directory
+    os.mkdir(dirName)
+    print("Directory " , dirName ,  " Created ") 
+except FileExistsError:
+    pass
+    print("Directory " , dirName ,  " already exists")
+
+
 ############################################
 #                 GLOBALS                  #
 ############################################
@@ -79,15 +94,17 @@ functions = {
          },
          10 : {
                 "name" : "Shifted Rotated Rastrigin's Function",         
-         },
+         }
+}
+"""
+,
          11 : {
                 "name" : "Shifted Rotated Weierstrass Function",        
          },
          12 : {
                 "name" : "Schwefel's Problem 2.13",         
          }
-}
-
+"""
 ############################################
 #         MATPLOTLIB PLOTTING              #
 ############################################
@@ -162,11 +179,11 @@ def plotMedians(funcNum: int, dim: int):
        name = '$%s$  - D = %s, median-best, %s runs' % (funcName, dim, RUNS)
        plt.title(name)
 
-       newpath = 'ensembleGraphsk=3w2Shuffle/%s' % (funcName)
+       newpath = '%s/%s' % (dirName, funcName)
        if not os.path.exists(newpath):
               os.makedirs(newpath)
        plt.savefig('%s/%s.png' % (newpath, name) )
-       plt.show()    
+       #plt.show()    
        plt.clf()
 
        mMeanFitness = [key for key in medianMeanFitnessDict.keys() if functions[funcNum]['name'] in key]
@@ -188,10 +205,10 @@ def plotMedians(funcNum: int, dim: int):
        name = '$%s$-D=%s, median-mean, %sruns' % (funcName, dim, RUNS)
        plt.title(name)
 
-       newpath = 'ensembleGraphsk=3w2Shuffle/%s' % (funcName)
+       newpath = '%s/%s' % (dirName, funcName)
        if not os.path.exists(newpath):
               os.makedirs(newpath)
        plt.savefig('%s/%s.png' % (newpath, name) )
-       plt.show()    
+       #plt.show()    
        plt.clf()
        

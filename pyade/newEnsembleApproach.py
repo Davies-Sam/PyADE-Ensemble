@@ -1,8 +1,5 @@
 import numpy as np
 import commons
-import ray
-from concurrent.futures import ProcessPoolExecutor as Executor
-import concurrent.futures
 from helper import  de, jade, sade, shade
 import os
 K = 3
@@ -39,9 +36,9 @@ def apply(population_size: int, individual_size: int, bounds: np.ndarray,
     n = int(population_size / len(ensemble))
     
     np.random.shuffle(population)
-    
+    #print(population)
     splitPopulation = [population[i:i + n] for i in range(0, len(population), n)]
-
+    #print(splitPopulation)
     for i, algo in enumerate(ensemble):
         params = algo.get_default_params(dim=DIM)
         bounds = np.array(bounds * DIM)
@@ -93,7 +90,7 @@ def apply(population_size: int, individual_size: int, bounds: np.ndarray,
                   
                 for res in result:
                     results[algo].append(res)
-                print(len(results[algo]))        
+                # print(len(results[algo]))        
                 algoParams[algo]['population'] = results[algo][-1][2].copy()
                 #print(type(algoParams[algo]['population']))
                 evals += popSize
@@ -119,6 +116,7 @@ def apply(population_size: int, individual_size: int, bounds: np.ndarray,
             scores = [ (bestFitnesses[algo], algo) for algo in bestFitnesses.keys()]
 
             test = [ (fitnessHistory[algo][0] - fitnessHistory[algo][-1]) / (algoParams[algo]['population_size'] * K)  for algo in fitnessHistory.keys()] 
+            
             #implement ratio of improvement over evals
             #print(test)
             #newScores = max ( test )

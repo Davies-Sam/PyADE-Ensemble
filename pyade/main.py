@@ -4,18 +4,6 @@ from helper import functions, algos, updateRuns, plotMedians, storeMeanResult, R
 import os
 import commons
 from cec2005real.cec2005 import Function
-############################################
-#             Directory Setup              #
-############################################
-local = os.getcwd()
-dirName = local + '/ensembleGraphsk=3w2Shuffle' 
-try:
-    # Create target Directory
-    os.mkdir(dirName)
-    print("Directory " , dirName ,  " Created ") 
-except FileExistsError:
-    pass
-    print("Directory " , dirName ,  " already exists")
 
 
 ############################################
