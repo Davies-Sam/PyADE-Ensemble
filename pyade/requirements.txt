@@ -1,0 +1,11 @@
+matplotlib==3.3.3
+basemap==1.2.1
+numpy==1.19.4
+cycler==0.10.0
+scipy==1.5.2
+ipython==7.19.0
+cec2005real==0.1
+celluloid==0.2.0
+landscapes==0.0.11
+typing==3.7.4.3
+yabox==1.1.0

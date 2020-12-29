@@ -1,0 +1,3 @@
+[submodule "pyade/cec2005real"]
+	path = pyade/cec2005real
+	url = git@github.com:dmolina/cec2005real.git

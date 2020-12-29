@@ -1,5 +1,3 @@
-TODO: add requirements.txt/.py
-TODO: add git submodule for cec2005real
 TODO: multithread the code
 TODO: clean up the code 
 TODO: add wilcoxon and other analysis on the Results
