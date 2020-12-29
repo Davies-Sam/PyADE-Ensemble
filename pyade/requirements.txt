@@ -1,5 +1,4 @@
 matplotlib==3.3.3
-basemap==1.2.1
 numpy==1.19.4
 cycler==0.10.0
 scipy==1.5.2
